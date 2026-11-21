@@ -190,14 +190,15 @@
   </div>
 
   <footer>
-    El QR guardado sigue funcionando en cualquier celular, sin cuenta y sin caducidad.<br>
-    En el modo sin servidor la imagen no se sube a ningún servidor: viaja dentro del código.
+    El QR guardado funciona en cualquier celular, con wifi o datos móviles, sin cuenta y sin caducidad.<br>
+    En el modo sin servidor la imagen no se guarda en ningún lado: viaja dentro del propio código.
   </footer>
 </main>
 
 <canvas id="lienzo"></canvas>
 
-<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<!-- defer: al escanear un código, el visor no espera al CDN para mostrar la imagen -->
+<script defer src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script>
 (function(){
   'use strict';
@@ -205,18 +206,20 @@
   var $ = function(id){ return document.getElementById(id); };
 
   /* ===================== VISOR ===================== */
-  // #i=<w|j>.<base64url>  la imagen viaja dentro del QR
-  // #u=<url>              imagen alojada (ImgBB)
-  var h = location.hash.slice(1);
-  if (h.indexOf('i=') === 0 || h.indexOf('u=') === 0) {
+  // ?i=<w|j>.<base64url>  la imagen viaja dentro del QR
+  // ?u=<url>              imagen alojada (ImgBB)
+  // Se acepta también el #i= antiguo: los códigos ya impresos siguen sirviendo.
+  var cap = (location.search.slice(1) + '&' + location.hash.slice(1))
+              .match(/(?:^|[&;])([iu])=([^&;]+)/);
+  if (cap) {
     var img = $('vimg'), dl = $('bajar'), src = '', nombre = 'imagen';
     try {
-      if (h.indexOf('u=') === 0) {
-        src = decodeURIComponent(h.slice(2));
+      if (cap[1] === 'u') {
+        src = decodeURIComponent(cap[2]);
         dl.target = '_blank'; dl.removeAttribute('download');
         nombre = src.split('/').pop() || 'imagen';
       } else {
-        var d = h.slice(2), p = d.indexOf('.');
+        var d = cap[2], p = d.indexOf('.');
         var tipo = d.slice(0, p) === 'w' ? 'webp' : 'jpeg';
         src = 'data:image/' + tipo + ';base64,' + b64urlAb64(d.slice(p + 1));
         nombre = 'imagen.' + (tipo === 'webp' ? 'webp' : 'jpg');
@@ -234,7 +237,7 @@
       f.innerHTML = 'No se pudo mostrar la imagen de este código.<br><br>' +
         'Puede que el escáner haya leído el enlace incompleto. Vuelve a escanearlo ' +
         'de cerca y con buena luz.<br><br><a href="' +
-        location.href.split('#')[0] + '">Crear un código nuevo</a>';
+        soloBase(location.href) + '">Crear un código nuevo</a>';
       f.hidden = false;
     }
     return;  // no se carga nada más: solo la imagen
@@ -253,7 +256,7 @@
   var modo = 1, archivo = null, enlace = '', trabajando = false;
   var zona = $('zona'), inp = $('archivo'), aviso = $('aviso');
 
-  var baseAuto = location.protocol === 'file:' ? PAGINA : location.href.split('#')[0];
+  var baseAuto = location.protocol === 'file:' ? PAGINA : soloBase(location.href);
   $('base').value   = localStorage.getItem('qr_base') || baseAuto;
   $('apikey').value = localStorage.getItem('qr_imgbb') || '';
   $('balance').value = localStorage.getItem('qr_balance') || 'medio';
@@ -339,7 +342,7 @@
 
   /* modo 1: la imagen viaja dentro del QR */
   function viaQR(){
-    var base = (($('base').value.trim() || baseAuto)).split('#')[0];
+    var base = soloBase($('base').value.trim() || baseAuto);
     var niv  = NIVEL[$('balance').value] || NIVEL.medio;
     var presu = Math.min(niv.ch, TOPE_QR - (base.length + 6) - 8);
     if (presu < 300) return Promise.reject(new Error('La dirección de la página es demasiado larga para este modo.'));
@@ -366,8 +369,10 @@
       }
       if (!mejor) throw new Error('Esta imagen tiene demasiado detalle para este nivel. Elige "Máxima nitidez" o el modo "Calidad completa".');
 
+      // Va en la consulta (?i=) y no en el fragmento (#i=): varios lectores de
+      // Android convierten el # en %23 y entonces el servidor devuelve 404.
       return {
-        url: base + '#i=' + (mejor.tipo === 'webp' ? 'w' : 'j') + '.' + b64Ab64url(mejor.b64),
+        url: base + '?i=' + (mejor.tipo === 'webp' ? 'w' : 'j') + '.' + b64Ab64url(mejor.b64),
         ecc: niv.ecc,
         nota: '<b>' + mejor.w + ' × ' + mejor.h + ' px</b> · ' + mejor.tipo.toUpperCase() +
               ' · ' + kb(mejor.b64.length * 3 / 4) + ' dentro del QR'
@@ -416,10 +421,15 @@
   }
 
   /* ---------- pintar el QR ---------- */
-  function pinta(url, nota, ecc){
+  function pinta(url, nota, ecc, intento){
     enlace = url;
-    if (typeof qrcode === 'undefined') {
-      return msg('err', 'No cargó la librería del código QR. Revisa tu conexión y recarga la página.');
+    if (typeof qrcode === 'undefined') {           // el script va con defer: esperarlo
+      intento = (intento || 0) + 1;
+      if (intento > 40) {
+        return msg('err', 'No cargó el generador de códigos. Revisa tu conexión y recarga la página.');
+      }
+      msg('car', 'Cargando el generador de códigos…');
+      return setTimeout(function(){ pinta(url, nota, ecc, intento); }, 150);
     }
     var q;
     try {
@@ -476,6 +486,7 @@
   }
   function msg(t, s){ aviso.className = 'aviso ' + t; aviso.textContent = s; }
   function limpiaMsg(){ aviso.className = 'aviso'; aviso.textContent = ''; }
+  function soloBase(u){ return u.split('#')[0].split('?')[0]; }
   function b64Ab64url(s){ return s.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
   function b64urlAb64(s){
     s = s.replace(/-/g,'+').replace(/_/g,'/');

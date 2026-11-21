@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recuperando la imagen…</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:#0f1115;color:#e8eaed;text-align:center;padding:28px;
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  .caja{max-width:430px}
+  h1{font-size:19px;margin:0 0 12px;font-weight:650}
+  p{margin:0 0 14px;color:#9aa0ab;font-size:14.5px}
+  a{display:inline-block;margin-top:8px;padding:11px 20px;border-radius:11px;
+    background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;
+    text-decoration:none;font-weight:600;font-size:14.5px}
+  .giro{width:30px;height:30px;margin:0 auto 18px;border-radius:50%;
+    border:3px solid #2a2f3a;border-top-color:#8b5cf6;animation:g .9s linear infinite}
+  @keyframes g{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="caja" id="caja">
+  <div class="giro"></div>
+  <h1>Recuperando la imagen…</h1>
+  <p>Un momento.</p>
+</div>
+
+<script>
+/* Algunos lectores de QR (sobre todo la cámara de Android) convierten el "#" del
+   enlace en "%23". El servidor ya no encuentra la página y responde 404, que es
+   cuando se sirve este archivo. Aquí se rescata la imagen del enlace roto y se
+   redirige al formato correcto, para que los códigos ya impresos sigan sirviendo. */
+(function(){
+  var crudo = location.pathname + location.search + location.hash;
+  var texto = crudo;
+  try { texto = decodeURIComponent(crudo); } catch (e) {}
+
+  // la carga útil es lo último del enlace: i=<tipo>.<datos>  o  u=<url>
+  var m = texto.match(/[#?&\/]([iu])=(.+)$/);
+  if (m) {
+    var base = texto.slice(0, m.index);
+    if (base.charAt(base.length - 1) !== '/') base += '/';
+    location.replace(location.origin + base + '?' + m[1] + '=' + m[2]);
+    return;
+  }
+
+  // no había nada que rescatar: llevar al generador
+  var raiz = location.pathname.split('/').slice(0, 2).join('/') + '/';
+  document.getElementById('caja').innerHTML =
+    '<h1>Esta dirección no existe</h1>' +
+    '<p>El código escaneado no traía ninguna imagen, o el lector solo leyó una parte. ' +
+    'Vuelve a escanearlo de cerca y con buena luz.</p>' +
+    '<a href="' + raiz + '">Ir al generador de códigos QR</a>';
+})();
+</script>
+</body>
+</html>

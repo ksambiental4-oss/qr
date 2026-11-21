@@ -8,11 +8,25 @@ En línea: <https://ksambiental4-oss.github.io/qr/>
 
 ## Cómo funciona
 
-El modo por defecto (**sin servidor**) no sube la imagen a ninguna parte: la reduce y la
-comprime en WebP hasta caber en los **2 953 bytes** que admite un código QR, y la guarda
-codificada dentro del propio enlace (`…/qr/#i=…`). El QR *es* la imagen. Por eso el
-código funciona en cualquier celular, sin cuenta, y no caduca nunca mientras la página
-siga publicada.
+El modo por defecto (**sin servidor**) no guarda la imagen en ninguna parte: la reduce y
+la comprime en WebP hasta caber en los **2 953 bytes** que admite un código QR, y la
+mete codificada dentro del propio enlace (`…/qr/?i=…`). El QR *es* la imagen. Por eso el
+código funciona en cualquier celular, con wifi o datos móviles, sin cuenta, y no caduca
+nunca mientras la página siga publicada.
+
+### Por qué los datos van en `?i=` y no en `#i=`
+La cámara de Android convierte el `#` del enlace en `%23` al abrirlo, con lo que el
+servidor deja de reconocer la ruta y responde **404**. Comprobado contra GitHub Pages:
+
+| Enlace | Respuesta |
+|---|---|
+| `/qr/#i=…` (2 943 ch) | 200 OK |
+| `/qr/%23i=…` (lo que manda Android) | **404** |
+| `/qr/?i=…` (2 943 ch) | 200 OK |
+
+Por eso los enlaces se generan con `?i=`. El visor sigue aceptando `#i=` para que los
+códigos impresos antes no dejen de funcionar, y un `404.html` rescata los enlaces que
+lleguen rotos con `%23` y redirige al formato bueno.
 
 El modo **calidad completa** sube la imagen a ImgBB con una API key gratuita y pone en
 el QR la URL directa del archivo: calidad original y un QR mucho más limpio.
@@ -64,7 +78,10 @@ Automatizadas con Chrome (puppeteer) y `jsqr` como escáner real:
 - Al abrir el enlace se ve el visor con la imagen cargada, la app oculta y el botón de
   descarga visible.
 
-### Dos fallos que encontraron estas pruebas
+- Los tres caminos posibles del enlace llegan a mostrar la imagen: el nuevo `?i=`, el
+  antiguo `#i=` y el roto por Android `%23` (rescatado por `404.html`).
+
+### Tres fallos que encontraron estas pruebas
 
 1. **Pantalla negra.** `#visor{display:flex}` es un selector de id y le gana al
    `[hidden]{display:none}` del navegador, así que el visor negro tapaba la app siempre.
@@ -72,3 +89,5 @@ Automatizadas con Chrome (puppeteer) y `jsqr` como escáner real:
 2. **El QR nunca se generaba.** `qrcode@1.5.4` no publica la carpeta `build/`, así que el
    `<script>` del CDN daba 404 (`ERR_BLOCKED_BY_ORB`) y `QRCode` quedaba `undefined`.
    Sustituida por `qrcode-generator`, dibujando el canvas a mano.
+3. **404 al escanear desde otro dispositivo.** El `#` del enlace llegaba como `%23`.
+   Resuelto con `?i=`, compatibilidad con `#i=` y el rescate de `404.html`.
