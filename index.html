@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Imagen a QR</title>
+<style>
+  :root{
+    --bg:#0f1115; --card:#171a21; --line:#272b35; --txt:#e8eaed;
+    --dim:#9aa0ab; --accent:#4ade80; --accent2:#22d3ee; --warn:#fbbf24;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+
+  /* ---------- VISOR: cuando se escanea el QR solo se ve la imagen ---------- */
+  #visor{position:fixed;inset:0;background:#000;display:flex;
+         align-items:center;justify-content:center;z-index:99}
+  #visor img{max-width:100vw;max-height:100vh;width:auto;height:auto;display:block}
+  #bajar{position:fixed;right:14px;bottom:14px;z-index:100;
+         width:46px;height:46px;border-radius:50%;display:flex;
+         align-items:center;justify-content:center;font-size:22px;
+         text-decoration:none;color:#fff;background:rgba(255,255,255,.14);
+         backdrop-filter:blur(6px);opacity:.5}
+  #bajar:active{opacity:1}
+
+  /* ---------- APP ---------- */
+  main{max-width:860px;margin:0 auto;padding:22px 16px 60px}
+  h1{font-size:21px;margin:0 0 4px}
+  .sub{color:var(--dim);font-size:13px;margin:0 0 22px}
+  .card{background:var(--card);border:1px solid var(--line);
+        border-radius:14px;padding:16px;margin-bottom:16px}
+  #zona{border:2px dashed var(--line);border-radius:14px;padding:34px 16px;
+        text-align:center;cursor:pointer;transition:.15s}
+  #zona:hover,#zona.on{border-color:var(--accent);background:#1b2430}
+  #zona b{display:block;font-size:16px;margin-bottom:6px}
+  #zona span{color:var(--dim);font-size:13px}
+  .modos{display:flex;gap:8px;margin:0 0 14px;flex-wrap:wrap}
+  .modos button{flex:1;min-width:150px;padding:10px;border-radius:10px;
+        border:1px solid var(--line);background:#12151b;color:var(--dim);
+        cursor:pointer;font:inherit;font-size:13px}
+  .modos button.sel{border-color:var(--accent);color:var(--txt);background:#1b2430}
+  label{display:block;font-size:12px;color:var(--dim);margin:12px 0 5px}
+  input[type=text],input[type=password]{width:100%;padding:10px;border-radius:9px;
+        border:1px solid var(--line);background:#0d1014;color:var(--txt);font:inherit}
+  .fila{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .btn{padding:10px 16px;border-radius:9px;border:0;cursor:pointer;
+       font:inherit;font-weight:600;background:var(--accent);color:#06240f}
+  .btn.sec{background:#222733;color:var(--txt)}
+  .btn:disabled{opacity:.45;cursor:default}
+  #qrbox{display:none;text-align:center}
+  #qrbox canvas{background:#fff;padding:12px;border-radius:12px;
+       width:100%;max-width:330px;height:auto;image-rendering:pixelated}
+  .meta{font-size:12px;color:var(--dim);margin-top:10px;word-break:break-all}
+  .aviso{font-size:12.5px;border-radius:9px;padding:10px 12px;margin-top:12px;display:none}
+  .aviso.err{display:block;background:#2a1618;color:#fca5a5}
+  .aviso.ok{display:block;background:#13251a;color:#86efac}
+  .aviso.adv{display:block;background:#2a2212;color:var(--warn)}
+  .ayuda{font-size:12.5px;color:var(--dim)}
+  .ayuda a{color:var(--accent2)}
+  canvas#lienzo{display:none}
+</style>
+</head>
+<body>
+
+<!-- Visor (se activa solo al abrir el enlace del QR) -->
+<div id="visor" hidden><img id="vimg" alt=""></div>
+<a id="bajar" href="#" download hidden title="Descargar">&#x2913;</a>
+
+<main id="app" hidden>
+  <h1>Imagen → código QR</h1>
+  <p class="sub">Sube una imagen, genera el QR y al escanearlo se abre <b>solo la imagen</b>, lista para descargar.</p>
+
+  <div class="card">
+    <div class="modos">
+      <button id="m1" class="sel">Sin servidor<br><span style="font-size:11px">la imagen va dentro del QR</span></button>
+      <button id="m2">Calidad completa<br><span style="font-size:11px">se sube a ImgBB (API key)</span></button>
+    </div>
+
+    <div id="zona">
+      <b>Toca aquí o arrastra una imagen</b>
+      <span>JPG, PNG, WebP o HEIC &middot; también puedes pegar con Ctrl+V</span>
+      <input type="file" id="archivo" accept="image/*" hidden>
+    </div>
+
+    <div id="cfg1">
+      <label>Dirección pública de esta página (la que abrirá el QR)</label>
+      <input type="text" id="base" placeholder="https://usuario.github.io/qr/">
+    </div>
+
+    <div id="cfg2" hidden>
+      <label>API key gratuita de ImgBB</label>
+      <input type="password" id="apikey" placeholder="pega aquí tu key">
+      <p class="ayuda">Saca una gratis en <a href="https://api.imgbb.com/" target="_blank" rel="noopener">api.imgbb.com</a>. Se guarda solo en este navegador.</p>
+    </div>
+
+    <div class="fila">
+      <button class="btn" id="generar" disabled>Generar QR</button>
+      <button class="btn sec" id="limpiar" hidden>Otra imagen</button>
+    </div>
+
+    <div class="aviso" id="aviso"></div>
+  </div>
+
+  <div class="card" id="qrbox">
+    <canvas id="qr"></canvas>
+    <div class="meta" id="meta"></div>
+    <div class="fila" style="justify-content:center">
+      <button class="btn sec" id="copiar">Copiar enlace</button>
+      <button class="btn sec" id="bajarqr">Descargar QR</button>
+      <button class="btn sec" id="abrir">Probar</button>
+    </div>
+  </div>
+</main>
+
+<canvas id="lienzo"></canvas>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script>
+(function(){
+  'use strict';
+
+  /* ===================== VISOR ===================== */
+  // #i=<tipo>.<base64url>  -> imagen embebida en el propio QR
+  // #u=<url>               -> imagen alojada (ImgBB)
+  var h = location.hash.slice(1);
+  if (h.indexOf('i=') === 0 || h.indexOf('u=') === 0) {
+    var visor = document.getElementById('visor');
+    var img   = document.getElementById('vimg');
+    var dl    = document.getElementById('bajar');
+    var src = '', nombre = 'imagen';
+    if (h.indexOf('u=') === 0) {
+      src = decodeURIComponent(h.slice(2));
+      dl.target = '_blank'; dl.removeAttribute('download');
+      nombre = src.split('/').pop() || 'imagen';
+    } else {
+      var d = h.slice(2), p = d.indexOf('.');
+      var tipo = d.slice(0, p) === 'w' ? 'webp' : 'jpeg';
+      src = 'data:image/' + tipo + ';base64,' + b64urlAb64(d.slice(p + 1));
+      nombre = 'imagen.' + (tipo === 'webp' ? 'webp' : 'jpg');
+    }
+    img.src = src;
+    dl.href = src; dl.setAttribute('download', nombre);
+    visor.hidden = false; dl.hidden = false;
+    document.title = nombre;
+    return; // no se carga nada más: solo la imagen
+  }
+
+  /* ===================== APP ===================== */
+  document.getElementById('app').hidden = false;
+
+  var TOPE_QR  = 2953;  // bytes máximos de un QR (versión 40, corrección L)
+  var PAGINA   = 'https://ksambiental4-oss.github.io/qr/';
+  var modo = 1, archivo = null, enlace = '';
+
+  var $ = function(id){ return document.getElementById(id); };
+  var zona = $('zona'), inp = $('archivo'), aviso = $('aviso');
+
+  // ---- base de la URL
+  var baseAuto = location.protocol === 'file:' ? PAGINA : location.href.split('#')[0];
+  $('base').value = localStorage.getItem('qr_base') || baseAuto;
+  $('base').addEventListener('change', function(){
+    localStorage.setItem('qr_base', $('base').value.trim());
+  });
+  $('apikey').value = localStorage.getItem('qr_imgbb') || '';
+  $('apikey').addEventListener('change', function(){
+    localStorage.setItem('qr_imgbb', $('apikey').value.trim());
+  });
+
+  if (location.protocol === 'file:') {
+    msg('adv', 'Estás abriendo el archivo localmente. Publica la página (GitHub Pages) y pon su dirección arriba, si no el QR no abrirá nada en el celular.');
+  }
+
+  // ---- modos
+  $('m1').onclick = function(){ setModo(1); };
+  $('m2').onclick = function(){ setModo(2); };
+  function setModo(n){
+    modo = n;
+    $('m1').className = n === 1 ? 'sel' : '';
+    $('m2').className = n === 2 ? 'sel' : '';
+    $('cfg1').hidden = n !== 1;
+    $('cfg2').hidden = n !== 2;
+    limpiaMsg();
+  }
+
+  // ---- selección de archivo
+  zona.onclick = function(){ inp.click(); };
+  inp.onchange = function(){ if (inp.files[0]) toma(inp.files[0]); };
+  ['dragenter','dragover'].forEach(function(e){
+    zona.addEventListener(e, function(ev){ ev.preventDefault(); zona.classList.add('on'); });
+  });
+  ['dragleave','drop'].forEach(function(e){
+    zona.addEventListener(e, function(ev){ ev.preventDefault(); zona.classList.remove('on'); });
+  });
+  zona.addEventListener('drop', function(ev){
+    var f = ev.dataTransfer.files[0]; if (f) toma(f);
+  });
+  document.addEventListener('paste', function(ev){
+    var it = ev.clipboardData && ev.clipboardData.files;
+    if (it && it[0]) toma(it[0]);
+  });
+
+  function toma(f){
+    if (!/^image\//.test(f.type) && !/\.(hei[cf]|jpe?g|png|webp|gif|bmp)$/i.test(f.name)) {
+      return msg('err', 'Ese archivo no parece una imagen.');
+    }
+    archivo = f;
+    zona.querySelector('b').textContent = f.name;
+    zona.querySelector('span').textContent = kb(f.size) + ' — listo para generar';
+    $('generar').disabled = false;
+    $('qrbox').style.display = 'none';
+    limpiaMsg();
+  }
+
+  // ---- generar
+  $('generar').onclick = function(){
+    if (!archivo) return;
+    $('generar').disabled = true;
+    $('generar').textContent = 'Procesando…';
+    (modo === 1 ? viaQR() : viaImgBB())
+      .then(function(r){ pinta(r.url, r.nota); })
+      .catch(function(e){ msg('err', e.message || String(e)); })
+      .then(function(){
+        $('generar').disabled = false;
+        $('generar').textContent = 'Generar QR';
+      });
+  };
+
+  $('limpiar').onclick = function(){
+    archivo = null; inp.value = '';
+    zona.querySelector('b').textContent = 'Toca aquí o arrastra una imagen';
+    zona.querySelector('span').textContent = 'JPG, PNG, WebP o HEIC · también puedes pegar con Ctrl+V';
+    $('qrbox').style.display = 'none';
+    $('generar').disabled = true; $('limpiar').hidden = true;
+    limpiaMsg();
+  };
+
+  /* ---------- modo 1: la imagen viaja dentro del QR ---------- */
+  function viaQR(){
+    var base = ($('base').value.trim() || baseAuto).split('#')[0];
+    var presu = TOPE_QR - (base.length + 6) - 8;   // margen de seguridad
+    if (presu < 400) return Promise.reject(new Error('La dirección de la página es demasiado larga para este modo.'));
+
+    return cargaImagen(archivo).then(function(im){
+      var webp = soportaWebp();
+      var lados = [720,640,560,480,420,360,320,280,240,200,170,140,110,90];
+      var calis = [.72,.6,.5,.42,.34,.26,.2,.15];
+      for (var i = 0; i < lados.length; i++) {
+        for (var j = 0; j < calis.length; j++) {
+          var r = comprime(im, lados[i], calis[j], webp ? 'image/webp' : 'image/jpeg');
+          if (r.b64.length <= presu) {
+            var url = base + '#i=' + (r.tipo === 'webp' ? 'w' : 'j') + '.' + b64Ab64url(r.b64);
+            return { url: url,
+                     nota: r.w + '×' + r.h + ' px · ' + r.tipo.toUpperCase() + ' · ' +
+                           kb(r.b64.length * 3 / 4) + ' dentro del QR' };
+          }
+        }
+      }
+      throw new Error('No se pudo comprimir lo suficiente. Usa el modo "Calidad completa".');
+    });
+  }
+
+  function comprime(im, lado, q, tipo){
+    var esc = Math.min(1, lado / Math.max(im.width, im.height));
+    var w = Math.max(1, Math.round(im.width * esc));
+    var hh = Math.max(1, Math.round(im.height * esc));
+    var c = $('lienzo'); c.width = w; c.height = hh;
+    var cx = c.getContext('2d');
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, hh);
+    cx.drawImage(im, 0, 0, w, hh);
+    var u = c.toDataURL(tipo, q);
+    var real = u.slice(5, u.indexOf(';')); // por si el navegador ignoró webp
+    return { b64: u.slice(u.indexOf(',') + 1), w: w, h: hh,
+             tipo: real === 'image/webp' ? 'webp' : 'jpeg' };
+  }
+
+  function soportaWebp(){
+    var c = document.createElement('canvas'); c.width = c.height = 1;
+    return c.toDataURL('image/webp').indexOf('data:image/webp') === 0;
+  }
+
+  /* ---------- modo 2: se sube a ImgBB ---------- */
+  function viaImgBB(){
+    var key = $('apikey').value.trim();
+    if (!key) return Promise.reject(new Error('Falta la API key de ImgBB.'));
+    localStorage.setItem('qr_imgbb', key);
+    var fd = new FormData();
+    fd.append('image', archivo);
+    return fetch('https://api.imgbb.com/1/upload?key=' + encodeURIComponent(key),
+                 { method: 'POST', body: fd })
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if (!j || !j.success) {
+          throw new Error('ImgBB rechazó la subida: ' +
+            ((j && j.error && j.error.message) || 'revisa la API key'));
+        }
+        var d = j.data.image && j.data.image.url ? j.data.image.url : j.data.url;
+        return { url: d, nota: 'Imagen completa alojada en ImgBB · ' + kb(archivo.size) };
+      });
+  }
+
+  /* ---------- QR ---------- */
+  function pinta(url, nota){
+    enlace = url;
+    if (typeof QRCode === 'undefined') {
+      return msg('err', 'No cargó la librería del QR (¿sin internet?). Recarga la página.');
+    }
+    QRCode.toCanvas($('qr'), url, {
+      errorCorrectionLevel: 'L', margin: 1, scale: 6,
+      color: { dark: '#000000', light: '#ffffff' }
+    }, function(err){
+      if (err) return msg('err', 'El contenido no cabe en un QR: ' + err.message);
+      $('qrbox').style.display = 'block';
+      $('limpiar').hidden = false;
+      $('meta').textContent = nota;
+      msg('ok', 'Listo. Escanea el QR: se abrirá solo la imagen.');
+      $('qrbox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }
+
+  $('copiar').onclick = function(){
+    navigator.clipboard.writeText(enlace)
+      .then(function(){ msg('ok', 'Enlace copiado.'); })
+      .catch(function(){ msg('adv', enlace); });
+  };
+  $('abrir').onclick = function(){ window.open(enlace, '_blank'); };
+  $('bajarqr').onclick = function(){
+    var a = document.createElement('a');
+    a.href = $('qr').toDataURL('image/png');
+    a.download = 'qr.png'; a.click();
+  };
+
+  /* ---------- utilidades ---------- */
+  function cargaImagen(f){
+    return new Promise(function(res, rej){
+      var u = URL.createObjectURL(f), im = new Image();
+      im.onload = function(){ URL.revokeObjectURL(u); res(im); };
+      im.onerror = function(){ URL.revokeObjectURL(u);
+        rej(new Error('El navegador no pudo leer esa imagen (si es HEIC de iPhone, conviértela a JPG).')); };
+      im.src = u;
+    });
+  }
+  function kb(n){
+    return n < 1024 ? Math.round(n) + ' B'
+         : n < 1048576 ? (n / 1024).toFixed(1) + ' KB'
+         : (n / 1048576).toFixed(2) + ' MB';
+  }
+  function msg(t, s){ aviso.className = 'aviso ' + t; aviso.textContent = s; }
+  function limpiaMsg(){ aviso.className = 'aviso'; aviso.textContent = ''; }
+  function b64Ab64url(s){ return s.replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+  function b64urlAb64(s){
+    s = s.replace(/-/g,'+').replace(/_/g,'/');
+    while (s.length % 4) s += '=';
+    return s;
+  }
+})();
+</script>
+</body>
+</html>
