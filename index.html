@@ -3,114 +3,199 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#6366f1">
 <title>Imagen a QR</title>
 <style>
   :root{
-    --bg:#0f1115; --card:#171a21; --line:#272b35; --txt:#e8eaed;
-    --dim:#9aa0ab; --accent:#4ade80; --accent2:#22d3ee; --warn:#fbbf24;
+    --ind:#6366f1; --ind-d:#4f46e5; --vio:#8b5cf6;
+    --txt:#1e1b4b; --dim:#6b7280; --line:#e5e7eb;
+    --card:#ffffff; --suave:#f5f3ff;
+    --ok:#059669; --err:#dc2626; --adv:#b45309;
+    --sombra:0 10px 30px -10px rgba(79,70,229,.25), 0 2px 8px rgba(17,24,39,.06);
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--txt);
-       font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+  html,body{min-height:100%}
+  body{margin:0;color:var(--txt);
+    font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+    background:#f7f7fb;
+    background-image:
+      radial-gradient(900px 500px at 12% -8%, #e0e7ff 0%, rgba(224,231,255,0) 60%),
+      radial-gradient(800px 500px at 95% 0%, #f3e8ff 0%, rgba(243,232,255,0) 55%);
+    background-attachment:fixed;
+    -webkit-font-smoothing:antialiased}
 
-  /* ---------- VISOR: cuando se escanea el QR solo se ve la imagen ---------- */
+  /* ========== VISOR: al escanear el QR solo se ve la imagen ========== */
   #visor{position:fixed;inset:0;background:#000;display:flex;
-         align-items:center;justify-content:center;z-index:99}
+    align-items:center;justify-content:center;z-index:99}
   #visor img{max-width:100vw;max-height:100vh;width:auto;height:auto;display:block}
-  #bajar{position:fixed;right:14px;bottom:14px;z-index:100;
-         width:46px;height:46px;border-radius:50%;display:flex;
-         align-items:center;justify-content:center;font-size:22px;
-         text-decoration:none;color:#fff;background:rgba(255,255,255,.14);
-         backdrop-filter:blur(6px);opacity:.5}
-  #bajar:active{opacity:1}
+  #bajar{position:fixed;right:16px;bottom:16px;z-index:100;
+    width:52px;height:52px;border-radius:50%;display:flex;
+    align-items:center;justify-content:center;font-size:24px;
+    text-decoration:none;color:#fff;background:rgba(255,255,255,.16);
+    -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+    border:1px solid rgba(255,255,255,.22);opacity:.55;transition:.2s}
+  #bajar:hover,#bajar:active{opacity:1;transform:scale(1.06)}
 
-  /* ---------- APP ---------- */
-  main{max-width:860px;margin:0 auto;padding:22px 16px 60px}
-  h1{font-size:21px;margin:0 0 4px}
-  .sub{color:var(--dim);font-size:13px;margin:0 0 22px}
-  .card{background:var(--card);border:1px solid var(--line);
-        border-radius:14px;padding:16px;margin-bottom:16px}
-  #zona{border:2px dashed var(--line);border-radius:14px;padding:34px 16px;
-        text-align:center;cursor:pointer;transition:.15s}
-  #zona:hover,#zona.on{border-color:var(--accent);background:#1b2430}
-  #zona b{display:block;font-size:16px;margin-bottom:6px}
-  #zona span{color:var(--dim);font-size:13px}
-  .modos{display:flex;gap:8px;margin:0 0 14px;flex-wrap:wrap}
-  .modos button{flex:1;min-width:150px;padding:10px;border-radius:10px;
-        border:1px solid var(--line);background:#12151b;color:var(--dim);
-        cursor:pointer;font:inherit;font-size:13px}
-  .modos button.sel{border-color:var(--accent);color:var(--txt);background:#1b2430}
-  label{display:block;font-size:12px;color:var(--dim);margin:12px 0 5px}
-  input[type=text],input[type=password]{width:100%;padding:10px;border-radius:9px;
-        border:1px solid var(--line);background:#0d1014;color:var(--txt);font:inherit}
-  .fila{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
-  .btn{padding:10px 16px;border-radius:9px;border:0;cursor:pointer;
-       font:inherit;font-weight:600;background:var(--accent);color:#06240f}
-  .btn.sec{background:#222733;color:var(--txt)}
-  .btn:disabled{opacity:.45;cursor:default}
-  #qrbox{display:none;text-align:center}
-  #qrbox canvas{background:#fff;padding:12px;border-radius:12px;
-       width:100%;max-width:330px;height:auto;image-rendering:pixelated}
-  .meta{font-size:12px;color:var(--dim);margin-top:10px;word-break:break-all}
-  .aviso{font-size:12.5px;border-radius:9px;padding:10px 12px;margin-top:12px;display:none}
-  .aviso.err{display:block;background:#2a1618;color:#fca5a5}
-  .aviso.ok{display:block;background:#13251a;color:#86efac}
-  .aviso.adv{display:block;background:#2a2212;color:var(--warn)}
-  .ayuda{font-size:12.5px;color:var(--dim)}
-  .ayuda a{color:var(--accent2)}
+  /* ========== APP ========== */
+  main{max-width:580px;margin:0 auto;padding:40px 18px 70px}
+  header{text-align:center;margin-bottom:26px}
+  .logo{width:56px;height:56px;margin:0 auto 14px;border-radius:17px;
+    background:linear-gradient(140deg,var(--ind),var(--vio));
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 8px 22px -6px rgba(99,102,241,.6)}
+  .logo svg{width:30px;height:30px;fill:#fff}
+  h1{font-size:27px;line-height:1.2;margin:0 0 7px;letter-spacing:-.02em}
+  header p{margin:0;color:var(--dim);font-size:14.5px}
+
+  .card{background:var(--card);border-radius:22px;padding:22px;
+    box-shadow:var(--sombra);margin-bottom:18px}
+
+  /* pestañas de modo */
+  .tabs{display:flex;gap:5px;padding:5px;background:var(--suave);
+    border-radius:14px;margin-bottom:20px}
+  .tabs button{flex:1;padding:11px 8px;border:0;border-radius:10px;
+    background:transparent;color:var(--dim);cursor:pointer;
+    font:inherit;font-size:13.5px;font-weight:600;transition:.18s;
+    display:flex;flex-direction:column;gap:1px;align-items:center}
+  .tabs button small{font-weight:400;font-size:11.5px;opacity:.85}
+  .tabs button.sel{background:#fff;color:var(--ind-d);
+    box-shadow:0 1px 4px rgba(17,24,39,.09)}
+
+  /* zona de subida */
+  #zona{position:relative;border:2px dashed #d6d3f5;border-radius:18px;
+    padding:30px 18px;text-align:center;cursor:pointer;
+    background:#fbfaff;transition:.2s}
+  #zona:hover,#zona.on{border-color:var(--ind);background:#f3f1ff;
+    transform:translateY(-1px)}
+  #zona.con{padding:16px;display:flex;gap:14px;align-items:center;text-align:left}
+  .nube{width:50px;height:50px;margin:0 auto 10px;border-radius:14px;
+    background:linear-gradient(140deg,#eef2ff,#f5f3ff);
+    display:flex;align-items:center;justify-content:center}
+  .nube svg{width:25px;height:25px;stroke:var(--ind);fill:none;stroke-width:1.8;
+    stroke-linecap:round;stroke-linejoin:round}
+  #zona b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px;
+    word-break:break-word}
+  #zona span{color:var(--dim);font-size:12.5px}
+  #miniatura{width:62px;height:62px;border-radius:12px;object-fit:cover;
+    flex:0 0 62px;display:none;box-shadow:0 2px 8px rgba(17,24,39,.14)}
+  #zona.con #miniatura{display:block}
+  #zona.con .nube{display:none}
+  .ztxt{min-width:0;flex:1}
+
+  label{display:block;font-size:12px;font-weight:600;color:var(--dim);
+    margin:18px 0 6px;text-transform:uppercase;letter-spacing:.04em}
+  input[type=text],input[type=password],select{width:100%;padding:11px 13px;
+    border-radius:12px;border:1.5px solid var(--line);background:#fff;
+    color:var(--txt);font:inherit;font-size:14px;transition:.15s}
+  input:focus,select:focus{outline:0;border-color:var(--ind);
+    box-shadow:0 0 0 3px rgba(99,102,241,.14)}
+  .pista{font-size:12.5px;color:var(--dim);margin:7px 0 0}
+  .pista a{color:var(--ind-d);font-weight:600}
+
+  .btn{width:100%;margin-top:20px;padding:14px;border:0;border-radius:14px;
+    cursor:pointer;font:inherit;font-size:15.5px;font-weight:650;color:#fff;
+    background:linear-gradient(135deg,var(--ind),var(--vio));
+    box-shadow:0 8px 20px -8px rgba(99,102,241,.75);transition:.18s}
+  .btn:hover:not(:disabled){transform:translateY(-2px);
+    box-shadow:0 12px 26px -8px rgba(99,102,241,.85)}
+  .btn:disabled{opacity:.45;cursor:default;box-shadow:none;transform:none}
+  .mini{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
+  .mini button{flex:1;min-width:95px;padding:11px 10px;border-radius:11px;
+    border:1.5px solid var(--line);background:#fff;color:var(--txt);
+    cursor:pointer;font:inherit;font-size:13.5px;font-weight:600;transition:.15s}
+  .mini button:hover{border-color:var(--ind);color:var(--ind-d);background:#faf9ff}
+
+  .aviso{display:none;font-size:13.5px;border-radius:12px;
+    padding:11px 14px;margin-top:16px;line-height:1.45}
+  .aviso.err{display:block;background:#fef2f2;color:var(--err);
+    border:1px solid #fecaca}
+  .aviso.ok{display:block;background:#ecfdf5;color:var(--ok);
+    border:1px solid #a7f3d0}
+  .aviso.adv{display:block;background:#fffbeb;color:var(--adv);
+    border:1px solid #fde68a}
+
+  /* resultado */
+  #qrbox{display:none;text-align:center;animation:sube .35s ease}
+  @keyframes sube{from{opacity:0;transform:translateY(12px)}to{opacity:1}}
+  .marco{display:inline-block;padding:16px;background:#fff;border-radius:20px;
+    border:1px solid var(--line);box-shadow:0 4px 16px rgba(17,24,39,.08)}
+  #qr{display:block;width:100%;max-width:400px;height:auto;
+    image-rendering:pixelated}
+  #meta{font-size:12.5px;color:var(--dim);margin-top:14px}
+  #meta b{color:var(--txt);font-weight:650}
+  footer{text-align:center;font-size:12px;color:#9ca3af;margin-top:26px}
   canvas#lienzo{display:none}
+
+  @media (max-width:420px){ h1{font-size:23px} .card{padding:18px;border-radius:18px} }
 </style>
 </head>
 <body>
 
-<!-- Visor (se activa solo al abrir el enlace del QR) -->
+<!-- Visor: se activa SOLO al abrir el enlace del QR -->
 <div id="visor" hidden><img id="vimg" alt=""></div>
-<a id="bajar" href="#" download hidden title="Descargar">&#x2913;</a>
+<a id="bajar" href="#" download hidden title="Descargar imagen">&#x2913;</a>
 
 <main id="app" hidden>
-  <h1>Imagen → código QR</h1>
-  <p class="sub">Sube una imagen, genera el QR y al escanearlo se abre <b>solo la imagen</b>, lista para descargar.</p>
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 24 24"><path d="M3 3h7v7H3V3zm2 2v3h3V5H5zM14 3h7v7h-7V3zm2 2v3h3V5h-3zM3 14h7v7H3v-7zm2 2v3h3v-3H5zm9-2h2v2h-2v-2zm2 2h2v2h-2v-2zm2-2h3v2h-3v-2zm-4 4h2v3h-2v-3zm2 1h3v2h-3v-2zm3-1v-2h2v2h-2z"/></svg>
+    </div>
+    <h1>Imagen a código QR</h1>
+    <p>Sube una foto y obtén un QR. Al escanearlo se abre <b>solo la imagen</b>, lista para guardar.</p>
+  </header>
 
   <div class="card">
-    <div class="modos">
-      <button id="m1" class="sel">Sin servidor<br><span style="font-size:11px">la imagen va dentro del QR</span></button>
-      <button id="m2">Calidad completa<br><span style="font-size:11px">se sube a ImgBB (API key)</span></button>
+    <div class="tabs">
+      <button id="m1" class="sel">Sin servidor<small>va dentro del QR</small></button>
+      <button id="m2">Calidad completa<small>se sube a ImgBB</small></button>
     </div>
 
     <div id="zona">
-      <b>Toca aquí o arrastra una imagen</b>
-      <span>JPG, PNG, WebP o HEIC &middot; también puedes pegar con Ctrl+V</span>
+      <div class="nube">
+        <svg viewBox="0 0 24 24"><path d="M12 16V8m0 0L9 11m3-3l3 3"/><path d="M20 16.5A3.5 3.5 0 0017.5 10h-.9A6 6 0 105 15.6"/></svg>
+      </div>
+      <img id="miniatura" alt="">
+      <div class="ztxt">
+        <b>Toca para subir una imagen</b>
+        <span>JPG, PNG o WebP &middot; arrastra aquí o pega con Ctrl+V</span>
+      </div>
       <input type="file" id="archivo" accept="image/*" hidden>
     </div>
 
     <div id="cfg1">
-      <label>Dirección pública de esta página (la que abrirá el QR)</label>
+      <label for="balance">Equilibrio del QR</label>
+      <select id="balance">
+        <option value="facil">Fácil de escanear — QR abierto, imagen chica</option>
+        <option value="medio" selected>Equilibrado — recomendado</option>
+        <option value="nitido">Máxima nitidez — QR muy denso, mejor impreso</option>
+      </select>
+      <label for="base">Dirección pública de esta página</label>
       <input type="text" id="base" placeholder="https://usuario.github.io/qr/">
+      <p class="pista">Es la página que abrirá el QR. Se guarda en este navegador.</p>
     </div>
 
     <div id="cfg2" hidden>
-      <label>API key gratuita de ImgBB</label>
+      <label for="apikey">API key de ImgBB</label>
       <input type="password" id="apikey" placeholder="pega aquí tu key">
-      <p class="ayuda">Saca una gratis en <a href="https://api.imgbb.com/" target="_blank" rel="noopener">api.imgbb.com</a>. Se guarda solo en este navegador.</p>
+      <p class="pista">Gratis en <a href="https://api.imgbb.com/" target="_blank" rel="noopener">api.imgbb.com</a>. Se guarda solo en tu navegador.</p>
     </div>
 
-    <div class="fila">
-      <button class="btn" id="generar" disabled>Generar QR</button>
-      <button class="btn sec" id="limpiar" hidden>Otra imagen</button>
-    </div>
-
+    <button class="btn" id="generar" disabled>Generar código QR</button>
     <div class="aviso" id="aviso"></div>
   </div>
 
   <div class="card" id="qrbox">
-    <canvas id="qr"></canvas>
-    <div class="meta" id="meta"></div>
-    <div class="fila" style="justify-content:center">
-      <button class="btn sec" id="copiar">Copiar enlace</button>
-      <button class="btn sec" id="bajarqr">Descargar QR</button>
-      <button class="btn sec" id="abrir">Probar</button>
+    <div class="marco"><canvas id="qr"></canvas></div>
+    <div id="meta"></div>
+    <div class="mini">
+      <button id="bajarqr">Descargar QR</button>
+      <button id="copiar">Copiar enlace</button>
+      <button id="abrir">Probar</button>
+      <button id="limpiar">Otra imagen</button>
     </div>
   </div>
+
+  <footer>Las imágenes del modo sin servidor no se suben a ningún servidor.</footer>
 </main>
 
 <canvas id="lienzo"></canvas>
@@ -121,13 +206,11 @@
   'use strict';
 
   /* ===================== VISOR ===================== */
-  // #i=<tipo>.<base64url>  -> imagen embebida en el propio QR
-  // #u=<url>               -> imagen alojada (ImgBB)
+  // #i=<w|j>.<base64url>  imagen embebida en el propio QR
+  // #u=<url>              imagen alojada (ImgBB)
   var h = location.hash.slice(1);
   if (h.indexOf('i=') === 0 || h.indexOf('u=') === 0) {
-    var visor = document.getElementById('visor');
-    var img   = document.getElementById('vimg');
-    var dl    = document.getElementById('bajar');
+    var img = document.getElementById('vimg'), dl = document.getElementById('bajar');
     var src = '', nombre = 'imagen';
     if (h.indexOf('u=') === 0) {
       src = decodeURIComponent(h.slice(2));
@@ -138,40 +221,39 @@
       var tipo = d.slice(0, p) === 'w' ? 'webp' : 'jpeg';
       src = 'data:image/' + tipo + ';base64,' + b64urlAb64(d.slice(p + 1));
       nombre = 'imagen.' + (tipo === 'webp' ? 'webp' : 'jpg');
+      dl.setAttribute('download', nombre);
     }
-    img.src = src;
-    dl.href = src; dl.setAttribute('download', nombre);
-    visor.hidden = false; dl.hidden = false;
+    img.src = src; dl.href = src;
+    document.getElementById('visor').hidden = false;
+    dl.hidden = false;
     document.title = nombre;
-    return; // no se carga nada más: solo la imagen
+    return;  // no se carga nada más: solo la imagen
   }
 
   /* ===================== APP ===================== */
   document.getElementById('app').hidden = false;
 
-  var TOPE_QR  = 2953;  // bytes máximos de un QR (versión 40, corrección L)
-  var PAGINA   = 'https://ksambiental4-oss.github.io/qr/';
-  var modo = 1, archivo = null, enlace = '';
+  var TOPE_QR = 2953;        // bytes máximos de un QR (versión 40, corrección L)
+  var PAGINA  = 'https://ksambiental4-oss.github.io/qr/';
+  // presupuesto en caracteres base64 y nivel de corrección por equilibrio
+  var NIVEL = { facil:{ch:950, ecc:'L'}, medio:{ch:1500, ecc:'L'}, nitido:{ch:2901, ecc:'L'} };
 
+  var modo = 1, archivo = null, enlace = '';
   var $ = function(id){ return document.getElementById(id); };
   var zona = $('zona'), inp = $('archivo'), aviso = $('aviso');
 
-  // ---- base de la URL
   var baseAuto = location.protocol === 'file:' ? PAGINA : location.href.split('#')[0];
   $('base').value = localStorage.getItem('qr_base') || baseAuto;
-  $('base').addEventListener('change', function(){
-    localStorage.setItem('qr_base', $('base').value.trim());
-  });
   $('apikey').value = localStorage.getItem('qr_imgbb') || '';
-  $('apikey').addEventListener('change', function(){
-    localStorage.setItem('qr_imgbb', $('apikey').value.trim());
-  });
+  $('balance').value = localStorage.getItem('qr_balance') || 'medio';
+  $('base').onchange   = function(){ localStorage.setItem('qr_base', this.value.trim()); };
+  $('apikey').onchange = function(){ localStorage.setItem('qr_imgbb', this.value.trim()); };
+  $('balance').onchange= function(){ localStorage.setItem('qr_balance', this.value); };
 
   if (location.protocol === 'file:') {
-    msg('adv', 'Estás abriendo el archivo localmente. Publica la página (GitHub Pages) y pon su dirección arriba, si no el QR no abrirá nada en el celular.');
+    msg('adv', 'Estás abriendo el archivo desde tu disco. Publica la página en GitHub Pages y pon su dirección arriba; si no, el QR no abrirá nada en el celular.');
   }
 
-  // ---- modos
   $('m1').onclick = function(){ setModo(1); };
   $('m2').onclick = function(){ setModo(2); };
   function setModo(n){
@@ -183,7 +265,7 @@
     limpiaMsg();
   }
 
-  // ---- selección de archivo
+  /* ---------- elegir imagen ---------- */
   zona.onclick = function(){ inp.click(); };
   inp.onchange = function(){ if (inp.files[0]) toma(inp.files[0]); };
   ['dragenter','dragover'].forEach(function(e){
@@ -196,8 +278,8 @@
     var f = ev.dataTransfer.files[0]; if (f) toma(f);
   });
   document.addEventListener('paste', function(ev){
-    var it = ev.clipboardData && ev.clipboardData.files;
-    if (it && it[0]) toma(it[0]);
+    var f = ev.clipboardData && ev.clipboardData.files;
+    if (f && f[0]) toma(f[0]);
   });
 
   function toma(f){
@@ -205,58 +287,63 @@
       return msg('err', 'Ese archivo no parece una imagen.');
     }
     archivo = f;
+    $('miniatura').src = URL.createObjectURL(f);
+    zona.classList.add('con');
     zona.querySelector('b').textContent = f.name;
-    zona.querySelector('span').textContent = kb(f.size) + ' — listo para generar';
+    zona.querySelector('span').textContent = kb(f.size) + ' · toca para cambiarla';
     $('generar').disabled = false;
     $('qrbox').style.display = 'none';
     limpiaMsg();
   }
 
-  // ---- generar
-  $('generar').onclick = function(){
-    if (!archivo) return;
-    $('generar').disabled = true;
-    $('generar').textContent = 'Procesando…';
-    (modo === 1 ? viaQR() : viaImgBB())
-      .then(function(r){ pinta(r.url, r.nota); })
-      .catch(function(e){ msg('err', e.message || String(e)); })
-      .then(function(){
-        $('generar').disabled = false;
-        $('generar').textContent = 'Generar QR';
-      });
-  };
-
   $('limpiar').onclick = function(){
     archivo = null; inp.value = '';
-    zona.querySelector('b').textContent = 'Toca aquí o arrastra una imagen';
-    zona.querySelector('span').textContent = 'JPG, PNG, WebP o HEIC · también puedes pegar con Ctrl+V';
+    zona.classList.remove('con');
+    zona.querySelector('b').textContent = 'Toca para subir una imagen';
+    zona.querySelector('span').textContent = 'JPG, PNG o WebP · arrastra aquí o pega con Ctrl+V';
     $('qrbox').style.display = 'none';
-    $('generar').disabled = true; $('limpiar').hidden = true;
+    $('generar').disabled = true;
     limpiaMsg();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  /* ---------- modo 1: la imagen viaja dentro del QR ---------- */
+  /* ---------- generar ---------- */
+  $('generar').onclick = function(){
+    if (!archivo) return;
+    var b = $('generar');
+    b.disabled = true; b.textContent = 'Procesando…';
+    (modo === 1 ? viaQR() : viaImgBB())
+      .then(function(r){ pinta(r.url, r.nota, r.ecc); })
+      .catch(function(e){ msg('err', e.message || String(e)); })
+      .then(function(){ b.disabled = false; b.textContent = 'Generar código QR'; });
+  };
+
+  /* modo 1: la imagen viaja dentro del QR */
   function viaQR(){
-    var base = ($('base').value.trim() || baseAuto).split('#')[0];
-    var presu = TOPE_QR - (base.length + 6) - 8;   // margen de seguridad
-    if (presu < 400) return Promise.reject(new Error('La dirección de la página es demasiado larga para este modo.'));
+    var base = (($('base').value.trim() || baseAuto)).split('#')[0];
+    var niv  = NIVEL[$('balance').value] || NIVEL.medio;
+    var tope = TOPE_QR - (base.length + 6) - 8;        // lo que de verdad cabe
+    var presu = Math.min(niv.ch, tope);
+    if (presu < 300) return Promise.reject(new Error('La dirección de la página es demasiado larga para este modo.'));
 
     return cargaImagen(archivo).then(function(im){
-      var webp = soportaWebp();
-      var lados = [720,640,560,480,420,360,320,280,240,200,170,140,110,90];
-      var calis = [.72,.6,.5,.42,.34,.26,.2,.15];
+      var tipo = soportaWebp() ? 'image/webp' : 'image/jpeg';
+      var lados = [720,640,560,480,420,360,320,280,240,200,170,140,110,90,70,56,44];
+      var calis = [.72,.6,.5,.42,.34,.26,.2,.15,.1];
       for (var i = 0; i < lados.length; i++) {
         for (var j = 0; j < calis.length; j++) {
-          var r = comprime(im, lados[i], calis[j], webp ? 'image/webp' : 'image/jpeg');
+          var r = comprime(im, lados[i], calis[j], tipo);
           if (r.b64.length <= presu) {
-            var url = base + '#i=' + (r.tipo === 'webp' ? 'w' : 'j') + '.' + b64Ab64url(r.b64);
-            return { url: url,
-                     nota: r.w + '×' + r.h + ' px · ' + r.tipo.toUpperCase() + ' · ' +
-                           kb(r.b64.length * 3 / 4) + ' dentro del QR' };
+            return {
+              url: base + '#i=' + (r.tipo === 'webp' ? 'w' : 'j') + '.' + b64Ab64url(r.b64),
+              ecc: niv.ecc,
+              nota: '<b>' + r.w + ' × ' + r.h + ' px</b> · ' + r.tipo.toUpperCase() +
+                    ' · ' + kb(r.b64.length * 3 / 4) + ' dentro del QR'
+            };
           }
         }
       }
-      throw new Error('No se pudo comprimir lo suficiente. Usa el modo "Calidad completa".');
+      throw new Error('No se pudo comprimir tanto. Elige un equilibrio con más capacidad o usa "Calidad completa".');
     });
   }
 
@@ -266,10 +353,10 @@
     var hh = Math.max(1, Math.round(im.height * esc));
     var c = $('lienzo'); c.width = w; c.height = hh;
     var cx = c.getContext('2d');
-    cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, hh);
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, hh);   // fondo para PNG con transparencia
     cx.drawImage(im, 0, 0, w, hh);
     var u = c.toDataURL(tipo, q);
-    var real = u.slice(5, u.indexOf(';')); // por si el navegador ignoró webp
+    var real = u.slice(5, u.indexOf(';'));             // por si el navegador ignoró webp
     return { b64: u.slice(u.indexOf(',') + 1), w: w, h: hh,
              tipo: real === 'image/webp' ? 'webp' : 'jpeg' };
   }
@@ -279,7 +366,7 @@
     return c.toDataURL('image/webp').indexOf('data:image/webp') === 0;
   }
 
-  /* ---------- modo 2: se sube a ImgBB ---------- */
+  /* modo 2: se sube a ImgBB */
   function viaImgBB(){
     var key = $('apikey').value.trim();
     if (!key) return Promise.reject(new Error('Falta la API key de ImgBB.'));
@@ -287,40 +374,42 @@
     var fd = new FormData();
     fd.append('image', archivo);
     return fetch('https://api.imgbb.com/1/upload?key=' + encodeURIComponent(key),
-                 { method: 'POST', body: fd })
+                 { method:'POST', body:fd })
       .then(function(r){ return r.json(); })
+      .catch(function(){ throw new Error('No se pudo conectar con ImgBB. Revisa tu internet.'); })
       .then(function(j){
         if (!j || !j.success) {
           throw new Error('ImgBB rechazó la subida: ' +
             ((j && j.error && j.error.message) || 'revisa la API key'));
         }
-        var d = j.data.image && j.data.image.url ? j.data.image.url : j.data.url;
-        return { url: d, nota: 'Imagen completa alojada en ImgBB · ' + kb(archivo.size) };
+        var url = (j.data.image && j.data.image.url) ? j.data.image.url : j.data.url;
+        return { url:url, ecc:'M', nota:'<b>Calidad original</b> · ' + kb(archivo.size) + ' alojada en ImgBB' };
       });
   }
 
-  /* ---------- QR ---------- */
-  function pinta(url, nota){
+  /* ---------- pintar el QR ---------- */
+  function pinta(url, nota, ecc){
     enlace = url;
     if (typeof QRCode === 'undefined') {
       return msg('err', 'No cargó la librería del QR (¿sin internet?). Recarga la página.');
     }
+    var mods = '';
+    try { mods = ' · QR de ' + QRCode.create(url, { errorCorrectionLevel: ecc }).modules.size + ' módulos'; } catch (e) {}
     QRCode.toCanvas($('qr'), url, {
-      errorCorrectionLevel: 'L', margin: 1, scale: 6,
-      color: { dark: '#000000', light: '#ffffff' }
+      errorCorrectionLevel: ecc, margin: 1, scale: 8,
+      color: { dark:'#1e1b4b', light:'#ffffff' }
     }, function(err){
       if (err) return msg('err', 'El contenido no cabe en un QR: ' + err.message);
       $('qrbox').style.display = 'block';
-      $('limpiar').hidden = false;
-      $('meta').textContent = nota;
-      msg('ok', 'Listo. Escanea el QR: se abrirá solo la imagen.');
-      $('qrbox').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      $('meta').innerHTML = nota + mods;
+      msg('ok', '¡Listo! Escanea el QR y se abrirá solo la imagen.');
+      $('qrbox').scrollIntoView({ behavior:'smooth', block:'nearest' });
     });
   }
 
   $('copiar').onclick = function(){
     navigator.clipboard.writeText(enlace)
-      .then(function(){ msg('ok', 'Enlace copiado.'); })
+      .then(function(){ msg('ok', 'Enlace copiado al portapapeles.'); })
       .catch(function(){ msg('adv', enlace); });
   };
   $('abrir').onclick = function(){ window.open(enlace, '_blank'); };
@@ -334,7 +423,7 @@
   function cargaImagen(f){
     return new Promise(function(res, rej){
       var u = URL.createObjectURL(f), im = new Image();
-      im.onload = function(){ URL.revokeObjectURL(u); res(im); };
+      im.onload  = function(){ URL.revokeObjectURL(u); res(im); };
       im.onerror = function(){ URL.revokeObjectURL(u);
         rej(new Error('El navegador no pudo leer esa imagen (si es HEIC de iPhone, conviértela a JPG).')); };
       im.src = u;
@@ -342,8 +431,8 @@
   }
   function kb(n){
     return n < 1024 ? Math.round(n) + ' B'
-         : n < 1048576 ? (n / 1024).toFixed(1) + ' KB'
-         : (n / 1048576).toFixed(2) + ' MB';
+         : n < 1048576 ? (n/1024).toFixed(1) + ' KB'
+         : (n/1048576).toFixed(2) + ' MB';
   }
   function msg(t, s){ aviso.className = 'aviso ' + t; aviso.textContent = s; }
   function limpiaMsg(){ aviso.className = 'aviso'; aviso.textContent = ''; }
