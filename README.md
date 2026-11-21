@@ -1,56 +1,74 @@
 # Imagen a QR
 
-Página de una sola pieza (`index.html`) para subir una imagen y obtener un código QR.
-Al escanear el QR **solo se ve la imagen**, a pantalla completa y lista para guardar.
+Página de una sola pieza (`index.html`): subes una imagen, el código QR se genera
+solo, lo guardas, y al escanearlo desde **cualquier dispositivo** se abre a pantalla
+completa **solo la imagen**, lista para descargar.
+
+En línea: <https://ksambiental4-oss.github.io/qr/>
+
+## Cómo funciona
+
+El modo por defecto (**sin servidor**) no sube la imagen a ninguna parte: la reduce y la
+comprime en WebP hasta caber en los **2 953 bytes** que admite un código QR, y la guarda
+codificada dentro del propio enlace (`…/qr/#i=…`). El QR *es* la imagen. Por eso el
+código funciona en cualquier celular, sin cuenta, y no caduca nunca mientras la página
+siga publicada.
+
+El modo **calidad completa** sube la imagen a ImgBB con una API key gratuita y pone en
+el QR la URL directa del archivo: calidad original y un QR mucho más limpio.
+
+## Niveles
+
+A más datos dentro del QR, más módulos, y más difícil se lo pones a la cámara.
+Resultados medidos con una foto de 1600 × 1200:
+
+| Nivel | Datos | Resolución obtenida | Módulos |
+|---|---|---|---|
+| Fácil de escanear | ~825 B | 120 × 90 px | 113 × 113 |
+| Equilibrado | ~1 275 B | 270 × 203 px | 133 × 133 |
+| Máxima nitidez | ~2 175 B | 480 × 360 px | 169 × 169 |
+
+Con una imagen de muchísimo detalle las resoluciones bajan y el nivel más pequeño puede
+no alcanzar; la página lo avisa y sugiere otro nivel.
+
+### Por qué se comprime así
+Midiendo la curva real de WebP en Chrome: a igual peso, **más píxeles con poca calidad
+se ve mejor que pocos píxeles con mucha** (a 1 125 B caben 200 × 150 con calidad 0.1, o
+solo 96 × 72 con calidad 0.5). Por eso la búsqueda maximiza primero el tamaño —descarta
+cada medida con una sola prueba al mínimo— y después sube la calidad mientras siga
+cabiendo. WebP además no baja de unos 700 B, así que el nivel más pequeño no puede ser
+más ajustado de lo que es.
 
 ## Publicarla
 
-1. `Settings` → `Pages` → Source: `Deploy from a branch`, rama `main`, carpeta `/ (root)`.
-2. Queda en `https://ksambiental4-oss.github.io/qr/`.
-3. Esa misma dirección va en el campo *Dirección pública de esta página*, porque es la
-   que abrirá el QR al escanearlo.
-
-## Los dos modos
-
-| | Sin servidor | Calidad completa |
-|---|---|---|
-| Dónde vive la imagen | **dentro del propio QR** | en ImgBB |
-| Requiere cuenta | no | API key gratis de [api.imgbb.com](https://api.imgbb.com/) |
-| Resolución | reducida (ver tabla) | la original |
-| Caduca | nunca | según ImgBB |
-| QR resultante | denso | limpio, versión 4 |
-
-### Sin servidor
-La imagen se reduce y se comprime (WebP, o JPEG si el navegador no lo soporta) hasta
-caber en los **2 953 bytes** que admite un QR, y viaja codificada en el propio enlace
-(`…/qr/#i=…`). No se sube nada a ningún sitio: el QR *es* la imagen.
-
-El selector de equilibrio decide cuánto cabe. Medido con la librería `qrcode`:
-
-| Nivel | Datos de imagen | Versión QR | Módulos |
-|---|---|---|---|
-| Fácil de escanear | ~712 B | 22 | 105 × 105 |
-| Equilibrado | ~1 125 B | 29 | 133 × 133 |
-| Máxima nitidez | ~2 175 B | 40 | 177 × 177 |
-
-A más nitidez, más módulos y más difícil para la cámara: el nivel máximo conviene
-mostrarlo en grande o impreso. El resultado muestra siempre los píxeles y los módulos
-reales obtenidos.
-
-### Calidad completa
-La imagen se sube a ImgBB con tu API key (guardada solo en tu navegador, en
-`localStorage`) y el QR contiene la URL directa del archivo. QR limpio y calidad original.
+`Settings` → `Pages` → Source: `Deploy from a branch`, rama `main`, carpeta `/ (root)`.
+La página detecta sola su propia dirección, así que no hay nada que configurar.
 
 ## Notas
 
-- Admite arrastrar y soltar, pegar con `Ctrl+V` y la cámara del celular.
-- Los HEIC de iPhone solo funcionan si el navegador puede decodificarlos; si falla,
-  conviértelos a JPG.
-- El QR se puede descargar como PNG.
-- Única dependencia externa: [`qrcode`](https://github.com/soldair/node-qrcode) por CDN.
+- Arrastrar y soltar, pegar con `Ctrl+V` y cámara del celular.
+- Los HEIC de iPhone solo funcionan si el navegador puede decodificarlos.
+- Si el navegador no soporta codificar WebP, cae a JPEG automáticamente.
+- El QR se descarga en PNG de ~1 450 px, nítido para imprimir.
+- Única dependencia externa:
+  [`qrcode-generator`](https://github.com/kazuhikoarase/qrcode-generator) por CDN.
 
-## Pruebas hechas
+## Pruebas
 
-Con Node y la librería `jsqr` como escáner: una imagen real se codifica en el enlace, se
-genera el QR, se rasteriza y se decodifica. La imagen recuperada es **byte a byte
-idéntica** a la original en los tres niveles.
+Automatizadas con Chrome (puppeteer) y `jsqr` como escáner real:
+
+- La app carga sin pantalla negra, con la librería disponible.
+- Al subir la imagen el QR se genera solo, sin pulsar nada (~600 ms).
+- Los píxeles del canvas se decodifican con `jsqr` y devuelven un **WebP válido**, en los
+  tres niveles y con dos imágenes distintas.
+- Al abrir el enlace se ve el visor con la imagen cargada, la app oculta y el botón de
+  descarga visible.
+
+### Dos fallos que encontraron estas pruebas
+
+1. **Pantalla negra.** `#visor{display:flex}` es un selector de id y le gana al
+   `[hidden]{display:none}` del navegador, así que el visor negro tapaba la app siempre.
+   Corregido con un `[hidden]{display:none!important}` propio.
+2. **El QR nunca se generaba.** `qrcode@1.5.4` no publica la carpeta `build/`, así que el
+   `<script>` del CDN daba 404 (`ERR_BLOCKED_BY_ORB`) y `QRCode` quedaba `undefined`.
+   Sustituida por `qrcode-generator`, dibujando el canvas a mano.

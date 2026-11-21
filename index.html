@@ -5,29 +5,32 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#6366f1">
 <title>Imagen a QR</title>
+<link rel="icon" href="data:,">
 <style>
+  /* el atributo hidden debe ganar siempre, incluso a los selectores de id */
+  [hidden]{display:none!important}
+
   :root{
     --ind:#6366f1; --ind-d:#4f46e5; --vio:#8b5cf6;
     --txt:#1e1b4b; --dim:#6b7280; --line:#e5e7eb;
-    --card:#ffffff; --suave:#f5f3ff;
-    --ok:#059669; --err:#dc2626; --adv:#b45309;
+    --suave:#f5f3ff; --ok:#059669; --err:#dc2626; --adv:#b45309;
     --sombra:0 10px 30px -10px rgba(79,70,229,.25), 0 2px 8px rgba(17,24,39,.06);
   }
   *{box-sizing:border-box}
-  html,body{min-height:100%}
-  body{margin:0;color:var(--txt);
+  body{margin:0;color:var(--txt);min-height:100vh;
     font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
     background:#f7f7fb;
     background-image:
       radial-gradient(900px 500px at 12% -8%, #e0e7ff 0%, rgba(224,231,255,0) 60%),
       radial-gradient(800px 500px at 95% 0%, #f3e8ff 0%, rgba(243,232,255,0) 55%);
-    background-attachment:fixed;
-    -webkit-font-smoothing:antialiased}
+    background-attachment:fixed;-webkit-font-smoothing:antialiased}
 
-  /* ========== VISOR: al escanear el QR solo se ve la imagen ========== */
+  /* ========== VISOR: al abrir el enlace del QR solo se ve la imagen ========== */
   #visor{position:fixed;inset:0;background:#000;display:flex;
     align-items:center;justify-content:center;z-index:99}
   #visor img{max-width:100vw;max-height:100vh;width:auto;height:auto;display:block}
+  #fallo{color:#f3f4f6;text-align:center;padding:28px;font-size:15px;max-width:440px}
+  #fallo a{color:#a5b4fc}
   #bajar{position:fixed;right:16px;bottom:16px;z-index:100;
     width:52px;height:52px;border-radius:50%;display:flex;
     align-items:center;justify-content:center;font-size:24px;
@@ -47,10 +50,9 @@
   h1{font-size:27px;line-height:1.2;margin:0 0 7px;letter-spacing:-.02em}
   header p{margin:0;color:var(--dim);font-size:14.5px}
 
-  .card{background:var(--card);border-radius:22px;padding:22px;
+  .card{background:#fff;border-radius:22px;padding:22px;
     box-shadow:var(--sombra);margin-bottom:18px}
 
-  /* pestañas de modo */
   .tabs{display:flex;gap:5px;padding:5px;background:var(--suave);
     border-radius:14px;margin-bottom:20px}
   .tabs button{flex:1;padding:11px 8px;border:0;border-radius:10px;
@@ -61,24 +63,19 @@
   .tabs button.sel{background:#fff;color:var(--ind-d);
     box-shadow:0 1px 4px rgba(17,24,39,.09)}
 
-  /* zona de subida */
   #zona{position:relative;border:2px dashed #d6d3f5;border-radius:18px;
-    padding:30px 18px;text-align:center;cursor:pointer;
-    background:#fbfaff;transition:.2s}
-  #zona:hover,#zona.on{border-color:var(--ind);background:#f3f1ff;
-    transform:translateY(-1px)}
+    padding:30px 18px;text-align:center;cursor:pointer;background:#fbfaff;transition:.2s}
+  #zona:hover,#zona.on{border-color:var(--ind);background:#f3f1ff;transform:translateY(-1px)}
   #zona.con{padding:16px;display:flex;gap:14px;align-items:center;text-align:left}
   .nube{width:50px;height:50px;margin:0 auto 10px;border-radius:14px;
     background:linear-gradient(140deg,#eef2ff,#f5f3ff);
     display:flex;align-items:center;justify-content:center}
   .nube svg{width:25px;height:25px;stroke:var(--ind);fill:none;stroke-width:1.8;
     stroke-linecap:round;stroke-linejoin:round}
-  #zona b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px;
-    word-break:break-word}
+  #zona b{display:block;font-size:15.5px;font-weight:600;margin-bottom:4px;word-break:break-word}
   #zona span{color:var(--dim);font-size:12.5px}
   #miniatura{width:62px;height:62px;border-radius:12px;object-fit:cover;
-    flex:0 0 62px;display:none;box-shadow:0 2px 8px rgba(17,24,39,.14)}
-  #zona.con #miniatura{display:block}
+    flex:0 0 62px;box-shadow:0 2px 8px rgba(17,24,39,.14)}
   #zona.con .nube{display:none}
   .ztxt{min-width:0;flex:1}
 
@@ -91,39 +88,34 @@
     box-shadow:0 0 0 3px rgba(99,102,241,.14)}
   .pista{font-size:12.5px;color:var(--dim);margin:7px 0 0}
   .pista a{color:var(--ind-d);font-weight:600}
+  details{margin-top:16px}
+  summary{cursor:pointer;font-size:12.5px;color:var(--ind-d);font-weight:600}
+  details label{margin-top:12px}
 
-  .btn{width:100%;margin-top:20px;padding:14px;border:0;border-radius:14px;
-    cursor:pointer;font:inherit;font-size:15.5px;font-weight:650;color:#fff;
-    background:linear-gradient(135deg,var(--ind),var(--vio));
-    box-shadow:0 8px 20px -8px rgba(99,102,241,.75);transition:.18s}
-  .btn:hover:not(:disabled){transform:translateY(-2px);
-    box-shadow:0 12px 26px -8px rgba(99,102,241,.85)}
-  .btn:disabled{opacity:.45;cursor:default;box-shadow:none;transform:none}
   .mini{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
   .mini button{flex:1;min-width:95px;padding:11px 10px;border-radius:11px;
     border:1.5px solid var(--line);background:#fff;color:var(--txt);
     cursor:pointer;font:inherit;font-size:13.5px;font-weight:600;transition:.15s}
   .mini button:hover{border-color:var(--ind);color:var(--ind-d);background:#faf9ff}
+  .mini button.pri{background:linear-gradient(135deg,var(--ind),var(--vio));
+    color:#fff;border:0;box-shadow:0 6px 16px -7px rgba(99,102,241,.8)}
+  .mini button.pri:hover{color:#fff;transform:translateY(-1px)}
 
-  .aviso{display:none;font-size:13.5px;border-radius:12px;
-    padding:11px 14px;margin-top:16px;line-height:1.45}
-  .aviso.err{display:block;background:#fef2f2;color:var(--err);
-    border:1px solid #fecaca}
-  .aviso.ok{display:block;background:#ecfdf5;color:var(--ok);
-    border:1px solid #a7f3d0}
-  .aviso.adv{display:block;background:#fffbeb;color:var(--adv);
-    border:1px solid #fde68a}
+  .aviso{display:none;font-size:13.5px;border-radius:12px;padding:11px 14px;
+    margin-top:16px;line-height:1.45}
+  .aviso.err{display:block;background:#fef2f2;color:var(--err);border:1px solid #fecaca}
+  .aviso.ok{display:block;background:#ecfdf5;color:var(--ok);border:1px solid #a7f3d0}
+  .aviso.adv{display:block;background:#fffbeb;color:var(--adv);border:1px solid #fde68a}
+  .aviso.car{display:block;background:var(--suave);color:var(--ind-d);border:1px solid #ddd6fe}
 
-  /* resultado */
-  #qrbox{display:none;text-align:center;animation:sube .35s ease}
+  #qrbox{text-align:center;animation:sube .35s ease}
   @keyframes sube{from{opacity:0;transform:translateY(12px)}to{opacity:1}}
   .marco{display:inline-block;padding:16px;background:#fff;border-radius:20px;
     border:1px solid var(--line);box-shadow:0 4px 16px rgba(17,24,39,.08)}
-  #qr{display:block;width:100%;max-width:400px;height:auto;
-    image-rendering:pixelated}
+  #qr{display:block;width:100%;max-width:400px;height:auto;image-rendering:pixelated}
   #meta{font-size:12.5px;color:var(--dim);margin-top:14px}
   #meta b{color:var(--txt);font-weight:650}
-  footer{text-align:center;font-size:12px;color:#9ca3af;margin-top:26px}
+  footer{text-align:center;font-size:12px;color:#9ca3af;margin-top:26px;line-height:1.6}
   canvas#lienzo{display:none}
 
   @media (max-width:420px){ h1{font-size:23px} .card{padding:18px;border-radius:18px} }
@@ -131,8 +123,8 @@
 </head>
 <body>
 
-<!-- Visor: se activa SOLO al abrir el enlace del QR -->
-<div id="visor" hidden><img id="vimg" alt=""></div>
+<!-- Visor: se muestra SOLO al abrir el enlace que lleva el QR -->
+<div id="visor" hidden><img id="vimg" alt=""><div id="fallo" hidden></div></div>
 <a id="bajar" href="#" download hidden title="Descargar imagen">&#x2913;</a>
 
 <main id="app" hidden>
@@ -141,7 +133,7 @@
       <svg viewBox="0 0 24 24"><path d="M3 3h7v7H3V3zm2 2v3h3V5H5zM14 3h7v7h-7V3zm2 2v3h3V5h-3zM3 14h7v7H3v-7zm2 2v3h3v-3H5zm9-2h2v2h-2v-2zm2 2h2v2h-2v-2zm2-2h3v2h-3v-2zm-4 4h2v3h-2v-3zm2 1h3v2h-3v-2zm3-1v-2h2v2h-2z"/></svg>
     </div>
     <h1>Imagen a código QR</h1>
-    <p>Sube una foto y obtén un QR. Al escanearlo se abre <b>solo la imagen</b>, lista para guardar.</p>
+    <p>Sube una foto y el QR se crea solo. Guárdalo e imprímelo: al escanearlo desde cualquier dispositivo se abre <b>solo la imagen</b>.</p>
   </header>
 
   <div class="card">
@@ -154,7 +146,7 @@
       <div class="nube">
         <svg viewBox="0 0 24 24"><path d="M12 16V8m0 0L9 11m3-3l3 3"/><path d="M20 16.5A3.5 3.5 0 0017.5 10h-.9A6 6 0 105 15.6"/></svg>
       </div>
-      <img id="miniatura" alt="">
+      <img id="miniatura" alt="" hidden>
       <div class="ztxt">
         <b>Toca para subir una imagen</b>
         <span>JPG, PNG o WebP &middot; arrastra aquí o pega con Ctrl+V</span>
@@ -169,9 +161,12 @@
         <option value="medio" selected>Equilibrado — recomendado</option>
         <option value="nitido">Máxima nitidez — QR muy denso, mejor impreso</option>
       </select>
-      <label for="base">Dirección pública de esta página</label>
-      <input type="text" id="base" placeholder="https://usuario.github.io/qr/">
-      <p class="pista">Es la página que abrirá el QR. Se guarda en este navegador.</p>
+      <details>
+        <summary>Ajustes avanzados</summary>
+        <label for="base">Dirección pública de esta página</label>
+        <input type="text" id="base" placeholder="https://usuario.github.io/qr/">
+        <p class="pista">Es la página que abrirá el QR. Se detecta sola; cámbiala solo si sabes lo que haces.</p>
+      </details>
     </div>
 
     <div id="cfg2" hidden>
@@ -180,89 +175,114 @@
       <p class="pista">Gratis en <a href="https://api.imgbb.com/" target="_blank" rel="noopener">api.imgbb.com</a>. Se guarda solo en tu navegador.</p>
     </div>
 
-    <button class="btn" id="generar" disabled>Generar código QR</button>
     <div class="aviso" id="aviso"></div>
   </div>
 
-  <div class="card" id="qrbox">
+  <div class="card" id="qrbox" hidden>
     <div class="marco"><canvas id="qr"></canvas></div>
     <div id="meta"></div>
     <div class="mini">
-      <button id="bajarqr">Descargar QR</button>
+      <button id="bajarqr" class="pri">Guardar QR</button>
       <button id="copiar">Copiar enlace</button>
       <button id="abrir">Probar</button>
       <button id="limpiar">Otra imagen</button>
     </div>
   </div>
 
-  <footer>Las imágenes del modo sin servidor no se suben a ningún servidor.</footer>
+  <footer>
+    El QR guardado sigue funcionando en cualquier celular, sin cuenta y sin caducidad.<br>
+    En el modo sin servidor la imagen no se sube a ningún servidor: viaja dentro del código.
+  </footer>
 </main>
 
 <canvas id="lienzo"></canvas>
 
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script>
 (function(){
   'use strict';
 
+  var $ = function(id){ return document.getElementById(id); };
+
   /* ===================== VISOR ===================== */
-  // #i=<w|j>.<base64url>  imagen embebida en el propio QR
+  // #i=<w|j>.<base64url>  la imagen viaja dentro del QR
   // #u=<url>              imagen alojada (ImgBB)
   var h = location.hash.slice(1);
   if (h.indexOf('i=') === 0 || h.indexOf('u=') === 0) {
-    var img = document.getElementById('vimg'), dl = document.getElementById('bajar');
-    var src = '', nombre = 'imagen';
-    if (h.indexOf('u=') === 0) {
-      src = decodeURIComponent(h.slice(2));
-      dl.target = '_blank'; dl.removeAttribute('download');
-      nombre = src.split('/').pop() || 'imagen';
-    } else {
-      var d = h.slice(2), p = d.indexOf('.');
-      var tipo = d.slice(0, p) === 'w' ? 'webp' : 'jpeg';
-      src = 'data:image/' + tipo + ';base64,' + b64urlAb64(d.slice(p + 1));
-      nombre = 'imagen.' + (tipo === 'webp' ? 'webp' : 'jpg');
-      dl.setAttribute('download', nombre);
-    }
-    img.src = src; dl.href = src;
-    document.getElementById('visor').hidden = false;
-    dl.hidden = false;
+    var img = $('vimg'), dl = $('bajar'), src = '', nombre = 'imagen';
+    try {
+      if (h.indexOf('u=') === 0) {
+        src = decodeURIComponent(h.slice(2));
+        dl.target = '_blank'; dl.removeAttribute('download');
+        nombre = src.split('/').pop() || 'imagen';
+      } else {
+        var d = h.slice(2), p = d.indexOf('.');
+        var tipo = d.slice(0, p) === 'w' ? 'webp' : 'jpeg';
+        src = 'data:image/' + tipo + ';base64,' + b64urlAb64(d.slice(p + 1));
+        nombre = 'imagen.' + (tipo === 'webp' ? 'webp' : 'jpg');
+        dl.setAttribute('download', nombre);
+      }
+      img.onerror = function(){ noSePudo(); };
+      img.onload  = function(){ dl.hidden = false; };
+      img.src = src; dl.href = src;
+    } catch (e) { noSePudo(); }
+    $('visor').hidden = false;
     document.title = nombre;
+    function noSePudo(){
+      img.hidden = true; dl.hidden = true;
+      var f = $('fallo');
+      f.innerHTML = 'No se pudo mostrar la imagen de este código.<br><br>' +
+        'Puede que el escáner haya leído el enlace incompleto. Vuelve a escanearlo ' +
+        'de cerca y con buena luz.<br><br><a href="' +
+        location.href.split('#')[0] + '">Crear un código nuevo</a>';
+      f.hidden = false;
+    }
     return;  // no se carga nada más: solo la imagen
   }
 
   /* ===================== APP ===================== */
-  document.getElementById('app').hidden = false;
+  $('app').hidden = false;
 
-  var TOPE_QR = 2953;        // bytes máximos de un QR (versión 40, corrección L)
+  var TOPE_QR = 2953;   // bytes máximos de un QR (versión 40, corrección L)
   var PAGINA  = 'https://ksambiental4-oss.github.io/qr/';
-  // presupuesto en caracteres base64 y nivel de corrección por equilibrio
-  var NIVEL = { facil:{ch:950, ecc:'L'}, medio:{ch:1500, ecc:'L'}, nitido:{ch:2901, ecc:'L'} };
+  // presupuesto en caracteres base64 y corrección de errores por nivel
+  // WebP no baja de ~700 B por mucho que se comprima, así que el nivel más
+  // pequeño no puede ser más ajustado que esto o no cabría ninguna imagen
+  var NIVEL = { facil:{ch:1100, ecc:'L'}, medio:{ch:1700, ecc:'L'}, nitido:{ch:2901, ecc:'L'} };
 
-  var modo = 1, archivo = null, enlace = '';
-  var $ = function(id){ return document.getElementById(id); };
+  var modo = 1, archivo = null, enlace = '', trabajando = false;
   var zona = $('zona'), inp = $('archivo'), aviso = $('aviso');
 
   var baseAuto = location.protocol === 'file:' ? PAGINA : location.href.split('#')[0];
-  $('base').value = localStorage.getItem('qr_base') || baseAuto;
+  $('base').value   = localStorage.getItem('qr_base') || baseAuto;
   $('apikey').value = localStorage.getItem('qr_imgbb') || '';
   $('balance').value = localStorage.getItem('qr_balance') || 'medio';
-  $('base').onchange   = function(){ localStorage.setItem('qr_base', this.value.trim()); };
+
+  // cualquier cambio de ajustes regenera el QR al instante
+  $('base').onchange = function(){
+    localStorage.setItem('qr_base', this.value.trim()); if (archivo) genera();
+  };
   $('apikey').onchange = function(){ localStorage.setItem('qr_imgbb', this.value.trim()); };
-  $('balance').onchange= function(){ localStorage.setItem('qr_balance', this.value); };
+  $('balance').onchange = function(){
+    localStorage.setItem('qr_balance', this.value); if (archivo && modo === 1) genera();
+  };
 
   if (location.protocol === 'file:') {
-    msg('adv', 'Estás abriendo el archivo desde tu disco. Publica la página en GitHub Pages y pon su dirección arriba; si no, el QR no abrirá nada en el celular.');
+    msg('adv', 'Estás abriendo el archivo desde tu disco. Usa la página publicada (GitHub Pages); si no, el QR no abrirá nada en otro dispositivo.');
   }
 
   $('m1').onclick = function(){ setModo(1); };
   $('m2').onclick = function(){ setModo(2); };
   function setModo(n){
+    if (n === modo) return;
     modo = n;
     $('m1').className = n === 1 ? 'sel' : '';
     $('m2').className = n === 2 ? 'sel' : '';
     $('cfg1').hidden = n !== 1;
     $('cfg2').hidden = n !== 2;
     limpiaMsg();
+    $('qrbox').hidden = true;
+    if (archivo) genera();
   }
 
   /* ---------- elegir imagen ---------- */
@@ -287,63 +307,71 @@
       return msg('err', 'Ese archivo no parece una imagen.');
     }
     archivo = f;
-    $('miniatura').src = URL.createObjectURL(f);
+    var mi = $('miniatura');
+    mi.src = URL.createObjectURL(f); mi.hidden = false;
     zona.classList.add('con');
     zona.querySelector('b').textContent = f.name;
     zona.querySelector('span').textContent = kb(f.size) + ' · toca para cambiarla';
-    $('generar').disabled = false;
-    $('qrbox').style.display = 'none';
-    limpiaMsg();
+    genera();                           // el QR se crea solo, sin botones
   }
 
   $('limpiar').onclick = function(){
     archivo = null; inp.value = '';
     zona.classList.remove('con');
+    $('miniatura').hidden = true;
     zona.querySelector('b').textContent = 'Toca para subir una imagen';
     zona.querySelector('span').textContent = 'JPG, PNG o WebP · arrastra aquí o pega con Ctrl+V';
-    $('qrbox').style.display = 'none';
-    $('generar').disabled = true;
+    $('qrbox').hidden = true;
     limpiaMsg();
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  /* ---------- generar ---------- */
-  $('generar').onclick = function(){
-    if (!archivo) return;
-    var b = $('generar');
-    b.disabled = true; b.textContent = 'Procesando…';
+  /* ---------- generación automática ---------- */
+  function genera(){
+    if (!archivo || trabajando) return;
+    trabajando = true;
+    msg('car', modo === 1 ? 'Comprimiendo la imagen y creando el código…' : 'Subiendo la imagen…');
     (modo === 1 ? viaQR() : viaImgBB())
       .then(function(r){ pinta(r.url, r.nota, r.ecc); })
-      .catch(function(e){ msg('err', e.message || String(e)); })
-      .then(function(){ b.disabled = false; b.textContent = 'Generar código QR'; });
-  };
+      .catch(function(e){ msg('err', (e && e.message) || String(e)); })
+      .then(function(){ trabajando = false; });
+  }
 
   /* modo 1: la imagen viaja dentro del QR */
   function viaQR(){
     var base = (($('base').value.trim() || baseAuto)).split('#')[0];
     var niv  = NIVEL[$('balance').value] || NIVEL.medio;
-    var tope = TOPE_QR - (base.length + 6) - 8;        // lo que de verdad cabe
-    var presu = Math.min(niv.ch, tope);
+    var presu = Math.min(niv.ch, TOPE_QR - (base.length + 6) - 8);
     if (presu < 300) return Promise.reject(new Error('La dirección de la página es demasiado larga para este modo.'));
 
     return cargaImagen(archivo).then(function(im){
       var tipo = soportaWebp() ? 'image/webp' : 'image/jpeg';
-      var lados = [720,640,560,480,420,360,320,280,240,200,170,140,110,90,70,56,44];
-      var calis = [.72,.6,.5,.42,.34,.26,.2,.15,.1];
-      for (var i = 0; i < lados.length; i++) {
-        for (var j = 0; j < calis.length; j++) {
-          var r = comprime(im, lados[i], calis[j], tipo);
-          if (r.b64.length <= presu) {
-            return {
-              url: base + '#i=' + (r.tipo === 'webp' ? 'w' : 'j') + '.' + b64Ab64url(r.b64),
-              ecc: niv.ecc,
-              nota: '<b>' + r.w + ' × ' + r.h + ' px</b> · ' + r.tipo.toUpperCase() +
-                    ' · ' + kb(r.b64.length * 3 / 4) + ' dentro del QR'
-            };
-          }
+      // Medido en Chrome: a igual peso, más píxeles con poca calidad se ve mejor
+      // que pocos píxeles con mucha. Así que primero se maximiza el tamaño.
+      var lados = [900,800,720,640,560,480,420,380,340,300,270,240,210,180,160,140,120,100,80,64,48];
+      var subir = [.2,.3,.4,.5,.6,.72];
+      var mejor = null;
+
+      for (var i = 0; i < lados.length && !mejor; i++) {
+        // una sola prueba al mínimo descarta el lado entero si no cabe
+        var piso = comprime(im, lados[i], .08, tipo);
+        if (piso.b64.length > presu) continue;
+        mejor = piso;
+        // cabe: ahora se sube la calidad mientras siga cabiendo
+        for (var k = 0; k < subir.length; k++) {
+          var alt = comprime(im, lados[i], subir[k], tipo);
+          if (alt.b64.length > presu) break;
+          mejor = alt;
         }
       }
-      throw new Error('No se pudo comprimir tanto. Elige un equilibrio con más capacidad o usa "Calidad completa".');
+      if (!mejor) throw new Error('Esta imagen tiene demasiado detalle para este nivel. Elige "Máxima nitidez" o el modo "Calidad completa".');
+
+      return {
+        url: base + '#i=' + (mejor.tipo === 'webp' ? 'w' : 'j') + '.' + b64Ab64url(mejor.b64),
+        ecc: niv.ecc,
+        nota: '<b>' + mejor.w + ' × ' + mejor.h + ' px</b> · ' + mejor.tipo.toUpperCase() +
+              ' · ' + kb(mejor.b64.length * 3 / 4) + ' dentro del QR'
+      };
     });
   }
 
@@ -353,7 +381,7 @@
     var hh = Math.max(1, Math.round(im.height * esc));
     var c = $('lienzo'); c.width = w; c.height = hh;
     var cx = c.getContext('2d');
-    cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, hh);   // fondo para PNG con transparencia
+    cx.fillStyle = '#fff'; cx.fillRect(0, 0, w, hh);   // fondo para PNG transparente
     cx.drawImage(im, 0, 0, w, hh);
     var u = c.toDataURL(tipo, q);
     var real = u.slice(5, u.indexOf(';'));             // por si el navegador ignoró webp
@@ -375,8 +403,8 @@
     fd.append('image', archivo);
     return fetch('https://api.imgbb.com/1/upload?key=' + encodeURIComponent(key),
                  { method:'POST', body:fd })
-      .then(function(r){ return r.json(); })
-      .catch(function(){ throw new Error('No se pudo conectar con ImgBB. Revisa tu internet.'); })
+      .then(function(r){ return r.json(); },
+            function(){ throw new Error('No se pudo conectar con ImgBB. Revisa tu internet.'); })
       .then(function(j){
         if (!j || !j.success) {
           throw new Error('ImgBB rechazó la subida: ' +
@@ -390,21 +418,33 @@
   /* ---------- pintar el QR ---------- */
   function pinta(url, nota, ecc){
     enlace = url;
-    if (typeof QRCode === 'undefined') {
-      return msg('err', 'No cargó la librería del QR (¿sin internet?). Recarga la página.');
+    if (typeof qrcode === 'undefined') {
+      return msg('err', 'No cargó la librería del código QR. Revisa tu conexión y recarga la página.');
     }
-    var mods = '';
-    try { mods = ' · QR de ' + QRCode.create(url, { errorCorrectionLevel: ecc }).modules.size + ' módulos'; } catch (e) {}
-    QRCode.toCanvas($('qr'), url, {
-      errorCorrectionLevel: ecc, margin: 1, scale: 8,
-      color: { dark:'#1e1b4b', light:'#ffffff' }
-    }, function(err){
-      if (err) return msg('err', 'El contenido no cabe en un QR: ' + err.message);
-      $('qrbox').style.display = 'block';
-      $('meta').innerHTML = nota + mods;
-      msg('ok', '¡Listo! Escanea el QR y se abrirá solo la imagen.');
-      $('qrbox').scrollIntoView({ behavior:'smooth', block:'nearest' });
-    });
+    var q;
+    try {
+      q = qrcode(0, ecc);          // 0 = elige la versión más chica que quepa
+      q.addData(url, 'Byte');
+      q.make();
+    } catch (e) {
+      return msg('err', 'El contenido no cabe en un código QR. Elige un equilibrio con menos datos.');
+    }
+
+    var n = q.getModuleCount(), zq = 4;                   // zona blanca de 4 módulos
+    var px = Math.max(4, Math.round(1480 / (n + zq * 2))); // ~1480 px: nítido al imprimir
+    var lado = (n + zq * 2) * px;
+    var c = $('qr'); c.width = c.height = lado;
+    var cx = c.getContext('2d');
+    cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, lado, lado);
+    cx.fillStyle = '#1e1b4b';
+    for (var y = 0; y < n; y++) for (var x = 0; x < n; x++) {
+      if (q.isDark(y, x)) cx.fillRect((x + zq) * px, (y + zq) * px, px, px);
+    }
+
+    $('qrbox').hidden = false;
+    $('meta').innerHTML = nota + ' · QR de ' + n + ' × ' + n + ' módulos';
+    msg('ok', '¡Listo! Guarda el QR: al escanearlo se abrirá solo la imagen.');
+    $('qrbox').scrollIntoView({ behavior:'smooth', block:'nearest' });
   }
 
   $('copiar').onclick = function(){
